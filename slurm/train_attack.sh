@@ -9,18 +9,19 @@
 #SBATCH --mem=8G
 #SBATCH --gres=gpu:1
 #SBATCH --partition=gpu
+#SBATCH --constraint="t4|rtx6000|rtx8000|a40|h100|h200|l40s"
 
 # Run after train_shadows.sh array + merge step complete.
 # Submit with:
 #   sbatch slurm/train_attack.sh
 
-module load cuda
-source activate mi_env  # adjust to your conda env name
+module load python/3.10
+source ~/tml_env/bin/activate
 
-cd "$(dirname "$0")/.."
+cd "$HOME/mi_attack_replication"
 mkdir -p logs results/attack_models
 
-python train_attack.py \
+python3 train_attack.py \
     --attack_data results/shadows/attack_data.pt \
     --save_dir results/attack_models \
     --epochs 50

@@ -89,6 +89,76 @@ def plot_accuracy_vs_gap(results, save_path):
     print(f"Plot saved to {save_path}")
 
 
+def plot_attack_vs_baseline(results, save_path):
+    """Bar chart: attack accuracy vs. 0.5 random baseline for each training size."""
+    results_sorted = sorted(results, key=lambda r: r['train_size'])
+    sizes  = [str(r['train_size']) for r in results_sorted]
+    accs   = [r['attack_accuracy'] for r in results_sorted]
+    precs  = [r['precision']       for r in results_sorted]
+
+    x = range(len(sizes))
+    width = 0.3
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    bars1 = ax.bar([i - width/2 for i in x], accs,  width, label='Attack Accuracy', color='steelblue')
+    bars2 = ax.bar([i + width/2 for i in x], precs, width, label='Precision',       color='darkorange')
+    ax.axhline(0.5, color='gray', linestyle='--', linewidth=1.5, label='Random baseline (0.50)')
+
+    for bar in bars1:
+        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
+                f'{bar.get_height():.2f}', ha='center', va='bottom', fontsize=8)
+    for bar in bars2:
+        ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.01,
+                f'{bar.get_height():.2f}', ha='center', va='bottom', fontsize=8)
+
+    ax.set_xticks(list(x))
+    ax.set_xticklabels([f'n={s}' for s in sizes])
+    ax.set_ylabel('Score')
+    ax.set_title('MI Attack Accuracy vs. Random Baseline (CIFAR-10)')
+    ax.set_ylim(0, 1.1)
+    ax.legend()
+    ax.grid(True, axis='y', alpha=0.3)
+
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    fig.tight_layout()
+    fig.savefig(save_path, dpi=150)
+    plt.close(fig)
+    print(f"Plot saved to {save_path}")
+
+
+def plot_generalization_gaps(results, save_path):
+    """Grouped bar chart: train vs. test accuracy for each training size."""
+    results_sorted = sorted(results, key=lambda r: r['train_size'])
+    sizes      = [str(r['train_size']) for r in results_sorted]
+    train_accs = [r['train_acc']       for r in results_sorted]
+    test_accs  = [r['test_acc']        for r in results_sorted]
+
+    x = range(len(sizes))
+    width = 0.35
+
+    fig, ax = plt.subplots(figsize=(7, 5))
+    ax.bar([i - width/2 for i in x], train_accs, width, label='Train Accuracy', color='steelblue')
+    ax.bar([i + width/2 for i in x], test_accs,  width, label='Test Accuracy',  color='darkorange')
+
+    for i, (tr, te) in enumerate(zip(train_accs, test_accs)):
+        gap = tr - te
+        ax.text(i, max(tr, te) + 0.02, f'gap={gap:.2f}', ha='center', fontsize=8, color='dimgray')
+
+    ax.set_xticks(list(x))
+    ax.set_xticklabels([f'n={s}' for s in sizes])
+    ax.set_ylabel('Accuracy')
+    ax.set_title('Target Model Generalization Gap by Training Size (CIFAR-10)')
+    ax.set_ylim(0, 1.15)
+    ax.legend()
+    ax.grid(True, axis='y', alpha=0.3)
+
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+    fig.tight_layout()
+    fig.savefig(save_path, dpi=150)
+    plt.close(fig)
+    print(f"Plot saved to {save_path}")
+
+
 def print_results_table(results):
     print(f"\n{'Train Size':>12}  {'Gap':>8}  {'Atk Acc':>8}  {'Precision':>10}  {'Recall':>8}  {'F1':>8}")
     print("-" * 65)

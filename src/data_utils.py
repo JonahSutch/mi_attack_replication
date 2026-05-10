@@ -29,16 +29,20 @@ def partition_data(full_train, seed=42):
 
 def get_target_split(d_target_pool, train_size):
     """
-    Returns (target_train, target_nonmember) — both size train_size.
-    target_train  = members (used to train the target model)
-    target_nonmember = non-members (held-out, used for balanced eval)
+    Returns (target_train, target_nonmember).
+    target_train     = members (used to train the target model), size train_size
+    target_nonmember = non-members (held-out), size min(train_size, pool_size - train_size)
+    When train_size > pool_size // 2 (e.g. 15000 from 25000), nonmember set is smaller;
+    run_attack.py subsamples the member eval set to match for a balanced evaluation.
     """
-    assert train_size <= len(d_target_pool) // 2, (
-        f"train_size {train_size} too large for d_target_pool of size {len(d_target_pool)}"
+    pool_size = len(d_target_pool)
+    assert train_size < pool_size, (
+        f"train_size {train_size} must be less than d_target_pool size {pool_size}"
     )
-    indices = list(range(len(d_target_pool)))
+    n_nonmember = min(train_size, pool_size - train_size)
+    indices = list(range(pool_size))
     target_train     = Subset(d_target_pool, indices[:train_size])
-    target_nonmember = Subset(d_target_pool, indices[train_size: train_size * 2])
+    target_nonmember = Subset(d_target_pool, indices[train_size: train_size + n_nonmember])
     return target_train, target_nonmember
 
 

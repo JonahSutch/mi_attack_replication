@@ -13,11 +13,13 @@ import argparse
 import os
 import torch
 
+from torch.utils.data import Subset
 from src.data_utils import load_cifar10, partition_data, get_target_split, make_loader
 from src.target_model import TargetCNN
 from src.attack_model import load_attack_models
 from src.evaluate import (evaluate_attack, compute_generalization_gap,
-                           plot_accuracy_vs_gap, print_results_table)
+                           plot_accuracy_vs_gap, plot_attack_vs_baseline,
+                           plot_generalization_gaps, print_results_table)
 
 
 def run_single(target_path, attack_models_dir, data_dir, train_size, seed, device, batch_size):
@@ -36,8 +38,13 @@ def run_single(target_path, attack_models_dir, data_dir, train_size, seed, devic
 
     gap, train_acc, test_acc = compute_generalization_gap(model, train_loader, test_loader, device)
 
+    # Balance member eval set to match nonmember size (matters when train_size > pool_size // 2)
+    n_eval = min(len(target_train), len(target_nonmember))
+    member_eval_loader = make_loader(Subset(target_train, list(range(n_eval))),
+                                     batch_size=batch_size, shuffle=False)
+
     attack_models = load_attack_models(attack_models_dir, device=device)
-    metrics = evaluate_attack(attack_models, model, train_loader, nonmem_loader, device)
+    metrics = evaluate_attack(attack_models, model, member_eval_loader, nonmem_loader, device)
 
     return {
         'train_size':      train_size,
@@ -87,8 +94,13 @@ def main():
         print_results_table(results)
 
         if args.plot and results:
-            plot_path = os.path.join(args.results_dir, 'figures', 'attack_accuracy_vs_gap.png')
-            plot_accuracy_vs_gap(results, plot_path)
+            fig_dir = os.path.join(args.results_dir, 'figures')
+            plot_accuracy_vs_gap(results,
+                os.path.join(fig_dir, 'attack_accuracy_vs_gap.png'))
+            plot_attack_vs_baseline(results,
+                os.path.join(fig_dir, 'attack_vs_baseline.png'))
+            plot_generalization_gaps(results,
+                os.path.join(fig_dir, 'generalization_gaps.png'))
     else:
         if args.target_path is None:
             args.target_path = os.path.join(args.results_dir, f'target_{args.train_size}.pt')

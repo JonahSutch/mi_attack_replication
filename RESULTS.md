@@ -6,8 +6,6 @@
 
 ---
 
-## What We Did
-
 ### Overview
 
 We replicated the black-box membership inference attack from Shokri et al. (2017). The attack determines whether a specific data point was in a model's training set using only the confidence vectors (softmax outputs) returned by the model — no access to model weights or training data required. The pipeline has four stages: train a target model, train shadow models, train an attack classifier on shadow model outputs, then evaluate the attack against the target.
@@ -44,11 +42,11 @@ From D_target_pool, we carved out target training sets of varying sizes (2,500 /
 We trained **4 target models** at different training set sizes to vary the generalization gap:
 
 | Training Size | Train Acc | Test Acc | Generalization Gap |
-|---|---|---|---|
-| 2,500 | 100.00% | 53.46% | **46.54%** |
-| 5,000 | 100.00% | 57.47% | **42.53%** |
-| 10,000 | 100.00% | 62.38% | **37.62%** |
-| 15,000 | 100.00% | 64.40% | **35.60%** |
+|---------------|-----------|----------|--------------------|
+|      2,500    |  100.00%  |  53.46%  |     **46.54%**     |
+|      5,000    |  100.00%  |  57.47%  |     **42.53%**     |
+|     10,000    |  100.00%  |  62.38%  |     **37.62%**     |
+|     15,000    |  100.00%  |  64.40%  |     **35.60%**     |
 
 All four models achieved 100% training accuracy, confirming strong overfitting. Generalization gap decreases monotonically as training set size increases, consistent with the paper's setup.
 

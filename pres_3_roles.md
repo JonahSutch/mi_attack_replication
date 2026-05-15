@@ -13,7 +13,7 @@ Responsible for sourcing and integrating the new dataset into the existing pipel
 ---
 
 ## Role 2: Shadow Model Scaling
-## Person: 
+## Person: Dean Leon
 ## Branch: Shadow_Model_Scaling
 **Tasks:**
 - Train shadow models matching target model size

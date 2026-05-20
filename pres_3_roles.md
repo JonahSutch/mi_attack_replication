@@ -24,7 +24,7 @@ Responsible for scaling up the shadow model training infrastructure — ensuring
 ---
 
 ## Role 3: Attack Model Training
-## Person: 
+## Person: Adam Bobich
 ## Branch: Attack_Model_Training
 **Tasks:**
 - Train attack model for each individual target size for P2 tests

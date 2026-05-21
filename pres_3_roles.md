@@ -1,7 +1,7 @@
 # Presentation Roles P3
 
 ## Role 1: Data & Evaluation
-## Person:
+## Person: Runchen
 ## Branch: Data_&_Evaluation
 **Tasks:**
 - Extend to 1 additional dataset (Could be CIFAR-100 or Purchase-100)

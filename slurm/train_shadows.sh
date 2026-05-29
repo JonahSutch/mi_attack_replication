@@ -10,26 +10,26 @@
 #SBATCH --gres=gpu:1
 #SBATCH --partition=gpu
 #SBATCH --constraint="t4|rtx6000|rtx8000|a40|h100|h200|l40s"
-#SBATCH --array=0-49        # one task per shadow model (0-indexed)
+#SBATCH --array=0-149
 
+# Submitted automatically via submit_all.sh
 # Submit with:
 #   sbatch slurm/train_shadows.sh
-#
-# After all tasks complete, merge results:
-#   python3 train_shadows.py --merge_only --num_shadows 50 --save_dir results/shadows
+
+SIZES=(2500 5000 10000 15000)
+size_idx=$(( $SLURM_ARRAY_TASK_ID / 50 ))
+local_idx=$(( $SLURM_ARRAY_TASK_ID % 50 ))
+TRAIN_SIZE=${SIZES[$size_idx]}
 
 module load python/3.10
 source ~/tml_env/bin/activate
-
-cd "$HOME/mi_attack_replication"
-mkdir -p logs results/shadows
-
-TRAIN_SIZE=${TRAIN_SIZE:-2500}
+cd "$SLURM_SUBMIT_DIR"
+mkdir -p logs results/shadows/size_${TRAIN_SIZE}
 
 python3 train_shadows.py \
     --num_shadows 50 \
-    --train_size "$TRAIN_SIZE" \
-    --epochs 100 \
-    --save_dir results/shadows \
-    --start_idx "$SLURM_ARRAY_TASK_ID" \
-    --end_idx $((SLURM_ARRAY_TASK_ID + 1))
+    --train_size  "$TRAIN_SIZE" \
+    --epochs      100 \
+    --save_dir    results/shadows/size_${TRAIN_SIZE} \
+    --start_idx   "$local_idx" \
+    --end_idx     $(($local_idx + 1))

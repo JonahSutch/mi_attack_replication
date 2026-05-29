@@ -11,7 +11,8 @@
 #SBATCH --partition=gpu
 #SBATCH --constraint="t4|rtx6000|rtx8000|a40|h100|h200|l40s"
 
-# Usage:
+# Submitted automatically via submit_all.sh
+# Submit with:
 #   sbatch slurm/train_target.sh --train_size 2500
 #   sbatch slurm/train_target.sh --train_size 5000
 #   sbatch slurm/train_target.sh --train_size 10000

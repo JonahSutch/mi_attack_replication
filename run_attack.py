@@ -1,116 +1,87 @@
 """
-Evaluate the membership inference attack against a trained target model.
+Evaluate the P2 per-size attack models against each target model and
+synthesise results across all train_size configurations.
 
-Single evaluation:
-    python run_attack.py --target_path results/target_10000.pt \
-                         --attack_models_dir results/attack_models/ \
-                         --train_size 10000
+Uses the same run_single() logic as run_attack.py, but points each
+train_size at its own dedicated attack model directory instead of a
+single shared one.
 
-Full sweep (all training sizes → plot):
-    python run_attack.py --sweep --attack_models_dir results/attack_models/
+Example:
+    python run_attack.py
+    python run_attack.py --plot
+    python run_attack.py --train_sizes 2500 5000  # subset
+
+Output: prints a results table and (optionally) saves figures to
+results/figures/ using the same plot helpers as run_attack.py.
 """
+
 import argparse
 import os
+
 import torch
 
-from torch.utils.data import Subset
-from src.data_utils import load_cifar10, partition_data, get_target_split, make_loader
-from src.target_model import TargetCNN
-from src.attack_model import load_attack_models
-from src.evaluate import (evaluate_attack, compute_generalization_gap,
-                           plot_accuracy_vs_gap, plot_attack_vs_baseline,
-                           plot_generalization_gaps, print_results_table)
-
-
-def run_single(target_path, attack_models_dir, data_dir, train_size, seed, device, batch_size):
-    ckpt = torch.load(target_path, map_location=device)
-    model = TargetCNN()
-    model.load_state_dict(ckpt['state_dict'])
-    model.to(device).eval()
-
-    full_train, full_test = load_cifar10(data_dir)
-    d_target_pool, _ = partition_data(full_train, seed=seed)
-    target_train, target_nonmember = get_target_split(d_target_pool, train_size)
-
-    train_loader  = make_loader(target_train,     batch_size=batch_size, shuffle=False)
-    nonmem_loader = make_loader(target_nonmember, batch_size=batch_size, shuffle=False)
-    test_loader   = make_loader(full_test,        batch_size=batch_size, shuffle=False)
-
-    gap, train_acc, test_acc = compute_generalization_gap(model, train_loader, test_loader, device)
-
-    # Balance member eval set to match nonmember size (matters when train_size > pool_size // 2)
-    n_eval = min(len(target_train), len(target_nonmember))
-    member_eval_loader = make_loader(Subset(target_train, list(range(n_eval))),
-                                     batch_size=batch_size, shuffle=False)
-
-    attack_models = load_attack_models(attack_models_dir, device=device)
-    metrics = evaluate_attack(attack_models, model, member_eval_loader, nonmem_loader, device)
-
-    return {
-        'train_size':      train_size,
-        'gap':             gap,
-        'train_acc':       train_acc,
-        'test_acc':        test_acc,
-        'attack_accuracy': metrics['accuracy'],
-        'precision':       metrics['precision'],
-        'recall':          metrics['recall'],
-        'f1':              metrics['f1'],
-    }
+from run_attack import run_single
+from src.evaluate import (plot_accuracy_vs_gap, plot_attack_vs_baseline,
+                          plot_generalization_gaps, print_results_table)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--target_path',       type=str, default=None)
-    parser.add_argument('--attack_models_dir', type=str, default='./results/attack_models')
-    parser.add_argument('--data_dir',          type=str, default='./data')
-    parser.add_argument('--train_size',        type=int, default=10000)
-    parser.add_argument('--seed',              type=int, default=42)
-    parser.add_argument('--batch_size',        type=int, default=256)
-    parser.add_argument('--sweep',             action='store_true',
-                        help='Run over all train sizes: 2500, 5000, 10000, 15000')
-    parser.add_argument('--plot',              action='store_true',
-                        help='Save accuracy-vs-gap plot (requires --sweep)')
-    parser.add_argument('--results_dir',       type=str, default='./results')
+    parser.add_argument('--train_sizes', type=int, nargs='+',
+                        default=[2500, 5000, 10000, 15000],
+                        help='Target train sizes to evaluate.')
+    parser.add_argument('--attack_models_root', type=str,
+                        default='./results/attack_models',
+                        help='Root dir written by train_attack.py; '
+                             'expects size_<N>/ subdirs.')
+    parser.add_argument('--results_dir', type=str, default='./results')
+    parser.add_argument('--data_dir',    type=str, default='./data')
+    parser.add_argument('--seed',        type=int, default=42)
+    parser.add_argument('--batch_size',  type=int, default=256)
+    parser.add_argument('--plot', action='store_true',
+                        help='Save figures to results/figures/.')
     args = parser.parse_args()
 
-    device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
+    device = ('cuda'  if torch.cuda.is_available() else
+              'mps'   if torch.backends.mps.is_available() else
+              'cpu')
     print(f"Device: {device}")
 
-    if args.sweep:
-        train_sizes = [2500, 5000, 10000, 15000]
-        results = []
-        for ts in train_sizes:
-            path = os.path.join(args.results_dir, f'target_{ts}.pt')
-            if not os.path.exists(path):
-                print(f"Missing {path}, skipping.")
-                continue
-            print(f"\n=== train_size={ts} ===")
-            r = run_single(path, args.attack_models_dir, args.data_dir,
-                           ts, args.seed, device, args.batch_size)
-            results.append(r)
-            print(f"  gap={r['gap']:.4f}  attack_acc={r['attack_accuracy']:.4f}  "
-                  f"prec={r['precision']:.4f}  recall={r['recall']:.4f}")
+    results = []
+    for ts in args.train_sizes:
+        target_path      = os.path.join(args.results_dir, f'target_{ts}.pt')
+        attack_models_dir = os.path.join(args.attack_models_root, f'size_{ts}')
 
-        print_results_table(results)
+        if not os.path.exists(target_path):
+            print(f"Missing {target_path}, skipping.")
+            continue
+        if not os.path.isdir(attack_models_dir):
+            print(f"Missing attack models dir {attack_models_dir}, skipping.")
+            continue
 
-        if args.plot and results:
-            fig_dir = os.path.join(args.results_dir, 'figures')
-            plot_accuracy_vs_gap(results,
-                os.path.join(fig_dir, 'attack_accuracy_vs_gap.png'))
-            plot_attack_vs_baseline(results,
-                os.path.join(fig_dir, 'attack_vs_baseline.png'))
-            plot_generalization_gaps(results,
-                os.path.join(fig_dir, 'generalization_gaps.png'))
-    else:
-        if args.target_path is None:
-            args.target_path = os.path.join(args.results_dir, f'target_{args.train_size}.pt')
-        r = run_single(args.target_path, args.attack_models_dir, args.data_dir,
-                       args.train_size, args.seed, device, args.batch_size)
-        print(f"\ntrain_size={r['train_size']}  gap={r['gap']:.4f}")
-        print(f"Attack accuracy:  {r['attack_accuracy']:.4f}")
-        print(f"Precision:        {r['precision']:.4f}")
-        print(f"Recall:           {r['recall']:.4f}")
-        print(f"F1:               {r['f1']:.4f}")
+        print(f"\n=== train_size={ts} | attack_dir=.../{os.path.basename(attack_models_dir)} ===")
+        r = run_single(target_path, attack_models_dir, args.data_dir,
+                       ts, args.seed, device, args.batch_size)
+        results.append(r)
+        print(f"  gap={r['gap']:.4f}  attack_acc={r['attack_accuracy']:.4f}  "
+              f"prec={r['precision']:.4f}  recall={r['recall']:.4f}")
+
+    if not results:
+        print("\nNo results collected — check paths and run training first.")
+        return
+
+    print_results_table(results)
+
+    if args.plot:
+        fig_dir = os.path.join(args.results_dir, 'figures')
+        os.makedirs(fig_dir, exist_ok=True)
+        plot_accuracy_vs_gap(results,
+            os.path.join(fig_dir, 'attack_accuracy_vs_gap.png'))
+        plot_attack_vs_baseline(results,
+            os.path.join(fig_dir, 'attack_vs_baseline.png'))
+        plot_generalization_gaps(results,
+            os.path.join(fig_dir, 'generalization_gaps.png'))
+        print(f"\nFigures saved to {fig_dir}/")
 
 
 if __name__ == '__main__':

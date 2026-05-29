@@ -8,6 +8,7 @@ module load python/3.10
 
 # Install missing packages into existing venv
 source ~/tml_env/bin/activate
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu --quiet
 pip install scikit-learn tqdm --quiet
 
 # Pre-download CIFAR-10 to avoid race conditions when 50 array tasks start at once

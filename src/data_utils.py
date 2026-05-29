@@ -54,8 +54,11 @@ def get_shadow_split(d_shadow_pool, train_size, seed):
     g = torch.Generator().manual_seed(seed)
     pool_size = len(d_shadow_pool)
     needed = train_size * 2
-    assert needed <= pool_size, (
-        f"Need {needed} examples but shadow pool only has {pool_size}"
+    if pool_size < needed:
+        print(f"Need {needed} examples but shadow pool only has {pool_size}. Using smaller test size")
+        needed = pool_size
+    assert train_size < pool_size, (
+        f"Train size ({train_size}) cannot be bigger than pool size ({pool_size})"
     )
     perm = torch.randperm(pool_size, generator=g).tolist()
     shadow_train = Subset(d_shadow_pool, perm[:train_size])

@@ -2,13 +2,13 @@
 Train shadow models and collect the attack training dataset.
 
 For a full local run:
-    python train_shadows.py --num_shadows 50 --train_size 10000
+    python train_shadows.py --num_shadows 100 --train_size 10000
 
 For a SLURM array task (one shadow model per task):
     python train_shadows.py --start_idx $SLURM_ARRAY_TASK_ID --end_idx $((SLURM_ARRAY_TASK_ID+1))
 
 After all tasks finish, merge outputs:
-    python train_shadows.py --merge_only --num_shadows 50 --save_dir results/shadows/
+    python train_shadows.py --merge_only --num_shadows 100 --save_dir results/shadows/
 """
 import argparse
 import os
@@ -20,7 +20,7 @@ from src.shadow_models import train_shadow_models, merge_shadow_data
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--num_shadows', type=int,   default=50)
+    parser.add_argument('--num_shadows', type=int,   default=100)
     parser.add_argument('--train_size',  type=int,   default=10000)
     parser.add_argument('--epochs',      type=int,   default=100)
     parser.add_argument('--lr',          type=float, default=0.001)

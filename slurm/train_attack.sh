@@ -15,13 +15,14 @@
 # Submit with:
 #   sbatch slurm/train_attack.sh
 
-module load python/3.10
-source ~/tml_env/bin/activate
+# module load python/3.10
+# source ~/tml_env/bin/activate
+PYTHON_EXEC="${PYTHON_EXEC:-/nfs/stak/users/leond/.conda/envs/trustworthy_ml/bin/python}"
 
 cd "$HOME/mi_attack_replication"
 mkdir -p logs results/attack_models
 
-python3 train_attack.py \
+"$PYTHON_EXEC" train_attack.py \
     --attack_data results/shadows/attack_data.pt \
     --save_dir results/attack_models \
     --epochs 50

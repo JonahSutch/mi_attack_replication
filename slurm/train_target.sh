@@ -17,10 +17,11 @@
 #   sbatch slurm/train_target.sh --train_size 10000
 #   sbatch slurm/train_target.sh --train_size 15000
 
-module load python/3.10
-source ~/tml_env/bin/activate
+# module load python/3.10
+# source ~/tml_env/bin/activate
+PYTHON_EXEC="${PYTHON_EXEC:-/nfs/stak/users/leond/.conda/envs/trustworthy_ml/bin/python}"
 
 cd "$HOME/mi_attack_replication"
 mkdir -p logs results
 
-python3 train_target.py --epochs 100 "$@"
+"$PYTHON_EXEC" train_target.py --epochs 100 "$@"

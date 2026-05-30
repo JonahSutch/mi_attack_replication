@@ -24,35 +24,15 @@ SHADOW_ID=$(sbatch --parsable slurm/train_shadows.sh)
 echo "=== Step 4: Scheduling merge job ==="
 # Merge shadow model outputs after the shadow array finishes.
 # Since it is a CPU-only and extremely short task, we run it as a short CPU job.
-MERGE_ID=$(sbatch --parsable \
-    --job-name=mi_merge \
-    --output=logs/merge_%j.out \
-    --error=logs/merge_%j.err \
-    --time=00:10:00 \
-    --ntasks=1 \
-    --cpus-per-task=1 \
-    --mem=4G \
-    --dependency=afterok:$SHADOW_ID \
-    --wrap="$PYTHON_EXEC train_shadows.py --merge_only --num_shadows 100 --save_dir results/shadows")
+MERGE_ID=$(sbatch --parsable --job-name=mi_merge --output=logs/merge_%j.out --error=logs/merge_%j.err --time=00:10:00 --ntasks=1 --cpus-per-task=1 --mem=4G --dependency=afterok:$SHADOW_ID --wrap="$PYTHON_EXEC train_shadows.py --merge_only --num_shadows 100 --save_dir results/shadows")
 
 echo "=== Step 5: Scheduling attack model training ==="
 # Train attack models after merging complete
-ATTACK_ID=$(sbatch --parsable \
-    --dependency=afterok:$MERGE_ID \
-    slurm/train_attack.sh)
+ATTACK_ID=$(sbatch --parsable --dependency=afterok:$MERGE_ID slurm/train_attack.sh)
 
 echo "=== Step 6: Scheduling evaluation and plot generation ==="
 # Run final evaluation once the attack models and all target models are trained
-EVAL_ID=$(sbatch --parsable \
-    --job-name=mi_eval \
-    --output=logs/eval_%j.out \
-    --error=logs/eval_%j.err \
-    --time=00:15:00 \
-    --ntasks=1 \
-    --cpus-per-task=1 \
-    --mem=4G \
-    --dependency=afterok:$ATTACK_ID:$TARGET_2500_ID:$TARGET_5000_ID:$TARGET_10000_ID:$TARGET_15000_ID \
-    --wrap="$PYTHON_EXEC run_attack.py --sweep --plot")
+EVAL_ID=$(sbatch --parsable --job-name=mi_eval --output=logs/eval_%j.out --error=logs/eval_%j.err --time=00:15:00 --ntasks=1 --cpus-per-task=1 --mem=4G --dependency=afterok:$ATTACK_ID:$TARGET_2500_ID:$TARGET_5000_ID:$TARGET_10000_ID:$TARGET_15000_ID --wrap="$PYTHON_EXEC run_attack.py --sweep --plot")
 
 echo ""
 echo "========================================================="

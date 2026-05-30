@@ -42,19 +42,30 @@ def main():
 
     # Step 4: Schedule merge job (CPU-bound, waits for shadow array to complete)
     print("=== Step 4: Scheduling merge job ===")
-    merge_cmd = [
-        "sbatch", "--parsable",
-        "--job-name=mi_merge",
-        "--output=logs/merge_%j.out",
-        "--error=logs/merge_%j.err",
-        "--time=00:10:00",
-        "--ntasks=1",
-        "--cpus-per-task=1",
-        "--mem=4G",
-        f"--dependency=afterok:{shadow_id}",
-        f"--wrap=\"{PYTHON_EXEC} train_shadows.py --merge_only --num_shadows 100 --save_dir results/shadows\""
-    ]
-    merge_id = run_command(merge_cmd)
+    temp_merge_path = "slurm/temp_merge.sh"
+    with open(temp_merge_path, "w") as f:
+        f.write(f"""#!/bin/bash
+#SBATCH --job-name=mi_merge
+#SBATCH --output=logs/merge_%j.out
+#SBATCH --error=logs/merge_%j.err
+#SBATCH --time=00:10:00
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=4G
+
+{PYTHON_EXEC} train_shadows.py --merge_only --num_shadows 100 --save_dir results/shadows
+""")
+
+    try:
+        merge_cmd = [
+            "sbatch", "--parsable",
+            f"--dependency=afterok:{shadow_id}",
+            temp_merge_path
+        ]
+        merge_id = run_command(merge_cmd)
+    finally:
+        if os.path.exists(temp_merge_path):
+            os.remove(temp_merge_path)
 
     # Step 5: Schedule attack training (GPU job, waits for merge job to complete)
     print("=== Step 5: Scheduling attack model training ===")
@@ -67,19 +78,30 @@ def main():
 
     # Step 6: Schedule evaluation/plot generation (CPU job, waits for attack and all target jobs)
     print("=== Step 6: Scheduling evaluation and plot generation ===")
-    eval_cmd = [
-        "sbatch", "--parsable",
-        "--job-name=mi_eval",
-        "--output=logs/eval_%j.out",
-        "--error=logs/eval_%j.err",
-        "--time=00:15:00",
-        "--ntasks=1",
-        "--cpus-per-task=1",
-        "--mem=4G",
-        f"--dependency=afterok:{attack_id}:{target_2500}:{target_5000}:{target_10000}:{target_15000}",
-        f"--wrap=\"{PYTHON_EXEC} run_attack.py --sweep --plot\""
-    ]
-    eval_id = run_command(eval_cmd)
+    temp_eval_path = "slurm/temp_eval.sh"
+    with open(temp_eval_path, "w") as f:
+        f.write(f"""#!/bin/bash
+#SBATCH --job-name=mi_eval
+#SBATCH --output=logs/eval_%j.out
+#SBATCH --error=logs/eval_%j.err
+#SBATCH --time=00:15:00
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=4G
+
+{PYTHON_EXEC} run_attack.py --sweep --plot
+""")
+
+    try:
+        eval_cmd = [
+            "sbatch", "--parsable",
+            f"--dependency=afterok:{attack_id}:{target_2500}:{target_5000}:{target_10000}:{target_15000}",
+            temp_eval_path
+        ]
+        eval_id = run_command(eval_cmd)
+    finally:
+        if os.path.exists(temp_eval_path):
+            os.remove(temp_eval_path)
 
     print("\n=========================================================")
     print("Pipeline submitted successfully!")

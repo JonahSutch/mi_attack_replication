@@ -23,6 +23,9 @@ results/shadows/
 results/attack_models/
 results/target_*.pt
 
+# Logs
+logs
+
 # Jupyter
 .ipynb_checkpoints/
 

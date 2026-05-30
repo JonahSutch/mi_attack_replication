@@ -33,7 +33,7 @@ MERGE_ID=$(sbatch --parsable \
     --cpus-per-task=1 \
     --mem=4G \
     --dependency=afterok:$SHADOW_ID \
-    --wrap="\"$PYTHON_EXEC\" train_shadows.py --merge_only --num_shadows 100 --save_dir results/shadows")
+    --wrap="$PYTHON_EXEC train_shadows.py --merge_only --num_shadows 100 --save_dir results/shadows")
 
 echo "=== Step 5: Scheduling attack model training ==="
 # Train attack models after merging complete
@@ -52,7 +52,7 @@ EVAL_ID=$(sbatch --parsable \
     --cpus-per-task=1 \
     --mem=4G \
     --dependency=afterok:$ATTACK_ID:$TARGET_2500_ID:$TARGET_5000_ID:$TARGET_10000_ID:$TARGET_15000_ID \
-    --wrap="\"$PYTHON_EXEC\" run_attack.py --sweep --plot")
+    --wrap="$PYTHON_EXEC run_attack.py --sweep --plot")
 
 echo ""
 echo "========================================================="

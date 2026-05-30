@@ -52,7 +52,7 @@ def main():
         "--cpus-per-task=1",
         "--mem=4G",
         f"--dependency=afterok:{shadow_id}",
-        f"--wrap={PYTHON_EXEC} train_shadows.py --merge_only --num_shadows 100 --save_dir results/shadows"
+        f"--wrap=\"{PYTHON_EXEC} train_shadows.py --merge_only --num_shadows 100 --save_dir results/shadows\""
     ]
     merge_id = run_command(merge_cmd)
 
@@ -77,7 +77,7 @@ def main():
         "--cpus-per-task=1",
         "--mem=4G",
         f"--dependency=afterok:{attack_id}:{target_2500}:{target_5000}:{target_10000}:{target_15000}",
-        f"--wrap={PYTHON_EXEC} run_attack.py --sweep --plot"
+        f"--wrap=\"{PYTHON_EXEC} run_attack.py --sweep --plot\""
     ]
     eval_id = run_command(eval_cmd)
 

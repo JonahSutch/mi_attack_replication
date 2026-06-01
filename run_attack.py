@@ -14,7 +14,7 @@ import os
 import torch
 
 from torch.utils.data import Subset
-from src.data_utils import load_cifar10, partition_data, get_target_split, make_loader
+from src.data_utils import load_dataset, partition_data, get_target_split, make_loader
 from src.target_model import TargetCNN
 from src.attack_model import load_attack_models
 from src.evaluate import (evaluate_attack, compute_generalization_gap,
@@ -22,13 +22,15 @@ from src.evaluate import (evaluate_attack, compute_generalization_gap,
                            plot_generalization_gaps, print_results_table)
 
 
-def run_single(target_path, attack_models_dir, data_dir, train_size, seed, device, batch_size):
+def run_single(target_path, attack_models_dir, data_dir, train_size, seed, device, batch_size, dataset, threshold):
+
+
+    (full_train, full_test), num_classes = load_dataset(dataset, data_dir)
+
     ckpt = torch.load(target_path, map_location=device)
-    model = TargetCNN()
+    model = TargetCNN(num_classes=num_classes)
     model.load_state_dict(ckpt['state_dict'])
     model.to(device).eval()
-
-    full_train, full_test = load_cifar10(data_dir)
     d_target_pool, _ = partition_data(full_train, seed=seed)
     target_train, target_nonmember = get_target_split(d_target_pool, train_size)
 
@@ -43,8 +45,13 @@ def run_single(target_path, attack_models_dir, data_dir, train_size, seed, devic
     member_eval_loader = make_loader(Subset(target_train, list(range(n_eval))),
                                      batch_size=batch_size, shuffle=False)
 
-    attack_models = load_attack_models(attack_models_dir, device=device)
-    metrics = evaluate_attack(attack_models, model, member_eval_loader, nonmem_loader, device)
+    attack_models = load_attack_models(
+    attack_models_dir,
+    num_classes=num_classes,
+    input_dim=num_classes,
+    device=device
+   )
+    metrics = evaluate_attack(attack_models, model, member_eval_loader, nonmem_loader, device, threshold=threshold)
 
     return {
         'train_size':      train_size,
@@ -71,6 +78,9 @@ def main():
     parser.add_argument('--plot',              action='store_true',
                         help='Save accuracy-vs-gap plot (requires --sweep)')
     parser.add_argument('--results_dir',       type=str, default='./results')
+    parser.add_argument('--dataset', type=str, default='cifar10',
+                    choices=['cifar10', 'cifar100'])
+    parser.add_argument('--threshold', type=float, default=0.5)
     args = parser.parse_args()
 
     device = 'cuda' if torch.cuda.is_available() else 'mps' if torch.backends.mps.is_available() else 'cpu'
@@ -80,13 +90,13 @@ def main():
         train_sizes = [2500, 5000, 10000, 15000]
         results = []
         for ts in train_sizes:
-            path = os.path.join(args.results_dir, f'target_{ts}.pt')
+            path = os.path.join(args.results_dir, f'target_{args.dataset}_{ts}.pt')
             if not os.path.exists(path):
                 print(f"Missing {path}, skipping.")
                 continue
             print(f"\n=== train_size={ts} ===")
             r = run_single(path, args.attack_models_dir, args.data_dir,
-                           ts, args.seed, device, args.batch_size)
+                           ts, args.seed, device, args.batch_size, args.dataset, args.threshold)
             results.append(r)
             print(f"  gap={r['gap']:.4f}  attack_acc={r['attack_accuracy']:.4f}  "
                   f"prec={r['precision']:.4f}  recall={r['recall']:.4f}")
@@ -103,9 +113,9 @@ def main():
                 os.path.join(fig_dir, 'generalization_gaps.png'))
     else:
         if args.target_path is None:
-            args.target_path = os.path.join(args.results_dir, f'target_{args.train_size}.pt')
+            args.target_path = os.path.join(args.results_dir, f'target_{args.dataset}_{args.train_size}.pt')
         r = run_single(args.target_path, args.attack_models_dir, args.data_dir,
-                       args.train_size, args.seed, device, args.batch_size)
+                       args.train_size, args.seed, device, args.batch_size, args.dataset, args.threshold)
         print(f"\ntrain_size={r['train_size']}  gap={r['gap']:.4f}")
         print(f"Attack accuracy:  {r['attack_accuracy']:.4f}")
         print(f"Precision:        {r['precision']:.4f}")

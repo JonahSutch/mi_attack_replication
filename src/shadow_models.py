@@ -8,7 +8,7 @@ from .target_model import TargetCNN, train_model, get_confidence_vectors
 
 def train_shadow_models(d_shadow_pool, num_shadows, train_size, save_dir,
                         epochs=100, lr=0.001, batch_size=64, device='cpu',
-                        start_idx=0, end_idx=None):
+                        start_idx=0, end_idx=None, num_classes=10):
     """
     Train shadow models from start_idx to end_idx (exclusive).
     Each model's confidence vectors are saved to save_dir/shadow_{i}_data.pt
@@ -30,7 +30,7 @@ def train_shadow_models(d_shadow_pool, num_shadows, train_size, save_dir,
         train_loader = make_loader(shadow_train, batch_size=batch_size, shuffle=True)
         test_loader  = make_loader(shadow_test,  batch_size=batch_size, shuffle=False)
 
-        model = TargetCNN().to(device)
+        model = TargetCNN(num_classes=num_classes).to(device)
         train_model(model, train_loader, epochs=epochs, lr=lr, device=device)
 
         conf_in,  labels_in  = get_confidence_vectors(model, train_loader, device)

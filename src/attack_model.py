@@ -27,6 +27,8 @@ def train_attack_models(attack_data, save_dir, num_classes=10, epochs=50,
     conf       = attack_data['conf']
     true_label = attack_data['true_label']
     in_out     = attack_data['in_out']
+    input_dim = conf.shape[1]
+    num_classes = int(true_label.max().item()) + 1
 
     criterion = nn.CrossEntropyLoss()
     models = []
@@ -42,7 +44,7 @@ def train_attack_models(attack_data, save_dir, num_classes=10, epochs=50,
         dataset = TensorDataset(conf_c, in_out_c)
         loader  = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
-        model = AttackMLP().to(device)
+        model = AttackMLP(input_dim=input_dim).to(device)
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
         for epoch in range(1, epochs + 1):
@@ -68,10 +70,10 @@ def train_attack_models(attack_data, save_dir, num_classes=10, epochs=50,
     return models
 
 
-def load_attack_models(save_dir, num_classes=10, device='cpu'):
+def load_attack_models(save_dir, num_classes=10, input_dim=10, device='cpu'):
     models = []
     for c in range(num_classes):
-        model = AttackMLP()
+        model = AttackMLP(input_dim=input_dim)
         state = torch.load(os.path.join(save_dir, f"attack_model_class_{c}.pt"),
                            map_location=device)
         model.load_state_dict(state)

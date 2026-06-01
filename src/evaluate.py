@@ -6,7 +6,7 @@ from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_sc
 from .target_model import get_accuracy, get_confidence_vectors
 
 
-def evaluate_attack(attack_models, target_model, member_loader, nonmember_loader, device='cpu'):
+def evaluate_attack(attack_models, target_model, member_loader, nonmember_loader, device='cpu', threshold=0.5):
     """
     Query target model for confidence vectors, run attack model predictions.
     Returns dict: {accuracy, precision, recall, f1}
@@ -14,8 +14,10 @@ def evaluate_attack(attack_models, target_model, member_loader, nonmember_loader
     conf_mem,    labels_mem    = get_confidence_vectors(target_model, member_loader,    device)
     conf_nonmem, labels_nonmem = get_confidence_vectors(target_model, nonmember_loader, device)
 
-    preds_mem    = _batch_predict(attack_models, conf_mem,    labels_mem,    device)
-    preds_nonmem = _batch_predict(attack_models, conf_nonmem, labels_nonmem, device)
+    preds_mem    = _batch_predict(attack_models, conf_mem,    labels_mem,    device,
+    threshold)
+    preds_nonmem = _batch_predict(attack_models, conf_nonmem, labels_nonmem, device,
+    threshold)
 
     y_true = torch.cat([torch.ones(len(preds_mem), dtype=torch.long),
                         torch.zeros(len(preds_nonmem), dtype=torch.long)]).numpy()
@@ -29,7 +31,7 @@ def evaluate_attack(attack_models, target_model, member_loader, nonmember_loader
     }
 
 
-def _batch_predict(attack_models, conf_tensor, label_tensor, device):
+def _batch_predict(attack_models, conf_tensor, label_tensor, device, threshold=0.5):
     """Run all 10 per-class attack models in one forward pass each, then route by true label."""
     n = len(conf_tensor)
     preds = torch.zeros(n, dtype=torch.long)
@@ -42,7 +44,10 @@ def _batch_predict(attack_models, conf_tensor, label_tensor, device):
         model.eval()
         with torch.no_grad():
             logits = model(conf_tensor[mask])
-            preds[mask] = logits.argmax(dim=1).cpu()
+            probs = torch.softmax(logits, dim=1)
+            member_prob = probs[:, 1]
+
+            preds[mask] = (member_prob > threshold).long().cpu()
 
     return preds
 

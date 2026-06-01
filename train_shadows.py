@@ -14,7 +14,7 @@ import argparse
 import os
 import torch
 
-from src.data_utils import load_cifar10, partition_data
+from src.data_utils import load_dataset, partition_data
 from src.shadow_models import train_shadow_models, merge_shadow_data
 
 
@@ -32,6 +32,8 @@ def main():
     parser.add_argument('--seed',        type=int,   default=42)
     parser.add_argument('--merge_only',  action='store_true',
                         help='Skip training; just merge existing shadow data files')
+    parser.add_argument('--dataset', type=str, default='cifar10',
+                    choices=['cifar10', 'cifar100'])
     args = parser.parse_args()
 
     if args.end_idx is None:
@@ -45,7 +47,7 @@ def main():
     is_partial_run = (args.start_idx != 0 or args.end_idx != args.num_shadows)
 
     if not args.merge_only:
-        full_train, _ = load_cifar10(args.data_dir)
+        (full_train, _), num_classes = load_dataset(args.dataset, args.data_dir)
         _, d_shadow_pool = partition_data(full_train, seed=args.seed)
 
         print(f"Training shadow models {args.start_idx}–{args.end_idx-1} | "
@@ -62,6 +64,7 @@ def main():
             device=device,
             start_idx=args.start_idx,
             end_idx=args.end_idx,
+            num_classes=num_classes,
         )
 
     if args.merge_only or not is_partial_run:

@@ -17,6 +17,23 @@ def load_cifar10(data_dir):
     test_set  = torchvision.datasets.CIFAR10(root=data_dir, train=False, download=True, transform=transform)
     return train_set, test_set
 
+def load_dataset(dataset, data_dir):
+    dataset = dataset.lower()
+
+    if dataset == "cifar10":
+        return load_cifar10(data_dir), 10
+
+    if dataset == "cifar100":
+        transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(CIFAR10_MEAN, CIFAR10_STD),
+        ])
+        train_set = torchvision.datasets.CIFAR100(root=data_dir, train=True, download=True, transform=transform)
+        test_set = torchvision.datasets.CIFAR100(root=data_dir, train=False, download=True, transform=transform)
+        return (train_set, test_set), 100
+
+    raise ValueError(f"Unknown dataset: {dataset}")
+
 
 def partition_data(full_train, seed=42):
     """Split 50k CIFAR-10 train set into D_target_pool and D_shadow_pool (25k each)."""
